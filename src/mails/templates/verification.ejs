@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Email Verification</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+                text-align: center;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #ffffff;
+                border-radius: 5px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+            }
+            p {
+                color: #666;
+                font-size: 16px;
+            }
+            a {
+                color: #0073e6;
+                text-decoration: none;
+            }
+            .button {
+                display: inline-block;
+                padding: 10px 20px;
+                background-color: #0073e6;
+                color: #ffffff;
+                text-align: center;
+                border-radius: 5px;
+                text-transform: uppercase;
+                margin: 20px 0;
+                text-decoration: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Verify you are the one</h1>
+            <p>Hello, <%=locals.name %></p>
+            <p>To continue your request, please enter the OTP below:</p>
+            <div style="text-align: center">
+                <h2 style="font-size: 30px; font-weight: bolder">
+                    <%=locals.code %>
+                </h2>
+            </div>
+
+            <p>
+                If you didn't request for this, please ignore this email. Your
+                information is safe.
+            </p>
+            <p>Best regards,<br />Urbco.</p>
+        </div>
+    </body>
+</html>

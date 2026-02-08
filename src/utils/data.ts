@@ -1,0 +1,25 @@
+const permissions = [
+    { name: 'List Users', code: 'get-users' },
+    { name: 'Create User', code: 'create-user' },
+    { name: 'Edit User', code: 'edit-user' },
+    { name: 'List Roles', code: 'get-roles' },
+    { name: 'Create Role', code: 'create-role' },
+    { name: 'Edit Role', code: 'edit-role' },
+    { name: 'View Features', code: 'view-features' },
+    { name: 'Edit Features', code: 'edit-features' },
+    { name: 'Create Features', code: 'create-features' },
+    { name: 'View Properties', code: 'view-properties' },
+    { name: 'Edit Properties', code: 'edit-properties' },
+    { name: 'Create Properties', code: 'create-properties' },
+    { name: 'View Types', code: 'view-types' },
+    { name: 'Edit Types', code: 'edit-types' },
+    { name: 'Create Types', code: 'create-types' },
+    { name: 'Dashboard Stats', code: 'dashboard-stats' },
+    { name: 'Edit Website Content', code: 'edit-website-content' },
+    { name: 'List Investors', code: 'get-investors' },
+    { name: 'List Investments', code: 'view-investments' },
+    { name: 'List Transactions', code: 'view-transactions' },
+    { name: 'Create Investment', code: 'create-investment' },
+];
+
+export { permissions };

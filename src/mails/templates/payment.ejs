@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Welcome to Urbco</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+                text-align: center;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #ffffff;
+                border-radius: 5px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+            }
+            p {
+                color: #666;
+                font-size: 16px;
+                line-height: 1.6;
+            }
+            a {
+                color: #0073e6;
+                text-decoration: none;
+            }
+            .button {
+                display: inline-block;
+                padding: 10px 20px;
+                background-color: #0073e6;
+                color: #ffffff;
+                text-align: center;
+                border-radius: 5px;
+                text-transform: uppercase;
+                margin: 20px 0;
+                text-decoration: none;
+            }
+            .footer {
+                margin-top: 20px;
+                font-size: 12px;
+                color: #999;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>We've received your Payment!</h1>
+            <p>Dear <%=locals.name %>,</p>
+            <p>
+                We hope this email finds you well.We are writing to confirm that
+                your payment was successful and your investment has been
+                recorded.
+            </p>
+            <p>
+                Receipt of the purchase must have gotten to you by now. Please
+                fill free to contact us if you have questions.
+            </p>
+
+            <a
+                class="button"
+                href="https://urbco.netlify.app/profile"
+                target="_blank"
+                >Access your Dashboard</a
+            >
+            <p>
+                If you have any questions or need assistance, don't hesitate to
+                contact us.
+            </p>
+            <p>Urbco.</p>
+        </div>
+    </body>
+</html>

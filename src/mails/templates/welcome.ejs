@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Welcome to Urbco</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+                text-align: center;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #ffffff;
+                border-radius: 5px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+            }
+            p {
+                color: #666;
+                font-size: 16px;
+                line-height: 1.6;
+            }
+            a {
+                color: #0073e6;
+                text-decoration: none;
+            }
+            .button {
+                display: inline-block;
+                padding: 10px 20px;
+                background-color: #0073e6;
+                color: #ffffff;
+                text-align: center;
+                border-radius: 5px;
+                text-transform: uppercase;
+                margin: 20px 0;
+                text-decoration: none;
+            }
+            .footer {
+                margin-top: 20px;
+                font-size: 12px;
+                color: #999;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Welcome to Urbco!</h1>
+            <p>Dear <%=locals.name %>,</p>
+            <p>
+                We're thrilled to have you as part of Urbco. Your journey with
+                us starts now, and we can't wait to share exciting experiences
+                with you.
+            </p>
+            <p>To get started, here are a few things you can do:</p>
+            <ul>
+                <li>
+                    <strong>Complete Your Profile:</strong> Let us know more
+                    about you.
+                </li>
+                <li>
+                    <strong>Explore Our Services:</strong> Check out what we
+                    offer.
+                </li>
+                <li>
+                    <strong>Stay Informed:</strong> Follow us on
+                    <a href="https://instagram.com" target="_blank"
+                        >Instagram</a
+                    >
+                    for updates
+                </li>
+            </ul>
+            <a
+                class="button"
+                href="https://urbco.netlify.app/profile"
+                target="_blank"
+                >Access your Dashboard</a
+            >
+            <p>
+                If you have any questions or need assistance, don't hesitate to
+                contact us.
+            </p>
+            <p>
+                Thank you for choosing Urbco. We look forward to a great journey
+                together!
+            </p>
+        </div>
+    </body>
+</html>
