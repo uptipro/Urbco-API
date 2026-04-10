@@ -52,7 +52,7 @@
         "uuid": "^9.0.0"
     },
     "engines": {
-        "node": ">=14.20.1"
+        "node": ">=18.0.0"
     },
     "devDependencies": {
         "@nestjs/cli": "^9.0.0",
