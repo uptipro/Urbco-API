@@ -186,6 +186,12 @@ export class Property {
 
     @Prop()
     optp: BulletPayment2;
+
+    @Prop({ default: false })
+    sent_to_buyops: boolean;
+
+    @Prop()
+    buyops_asset_id: string;
 }
 
 export const PropertySchema = SchemaFactory.createForClass(Property);

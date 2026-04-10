@@ -1,15 +1,20 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Property, PropertyDocument } from './entities/property.entity';
 import { Model } from 'mongoose';
 import { CreatePropertyDto } from './dto/property.dto';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class PropertyService {
     constructor(
         @InjectModel(Property.name)
         private readonly propertyModel: Model<PropertyDocument>,
-    ) {}
+        private readonly httpService: HttpService,
+        private readonly configService: ConfigService,
+    ) { }
 
     count() {
         return this.propertyModel.countDocuments();
@@ -37,11 +42,11 @@ export class PropertyService {
             total_price:
                 minAmountQuery || maxAmountQuery
                     ? JSON.parse(
-                          JSON.stringify({
-                              $gte: minAmountQuery,
-                              $lte: maxAmountQuery,
-                          }),
-                      )
+                        JSON.stringify({
+                            $gte: minAmountQuery,
+                            $lte: maxAmountQuery,
+                        }),
+                    )
                     : undefined,
         };
 
@@ -49,11 +54,11 @@ export class PropertyService {
 
         let mainQuery = query.keyword
             ? {
-                  $or: [
-                      { ref: { $regex: query.keyword, $options: 'i' } },
-                      { name: { $regex: query.keyword, $options: 'i' } },
-                  ],
-              }
+                $or: [
+                    { ref: { $regex: query.keyword, $options: 'i' } },
+                    { name: { $regex: query.keyword, $options: 'i' } },
+                ],
+            }
             : queries;
 
         const pageSize = Number(query.pageSize) || 10;
@@ -78,8 +83,8 @@ export class PropertyService {
     async createProperty(createPropertyDto: CreatePropertyDto, user: any) {
         if (
             Number(createPropertyDto.csp.volume_available) +
-                Number(createPropertyDto.optp.volume_available) +
-                Number(createPropertyDto.opbp.volume_available) >
+            Number(createPropertyDto.optp.volume_available) +
+            Number(createPropertyDto.opbp.volume_available) >
             100
         ) {
             throw new HttpException(
@@ -101,7 +106,7 @@ export class PropertyService {
                     Math.floor(
                         (createPropertyDto.optp.volume_available *
                             total_fractions) /
-                            100,
+                        100,
                     ) * createPropertyDto.cost_per_fraction;
                 let optpPercent =
                     (totalOptp * createPropertyDto.optp.discount) / 100;
@@ -110,7 +115,7 @@ export class PropertyService {
                     Math.floor(
                         (createPropertyDto.opbp.volume_available *
                             total_fractions) /
-                            100,
+                        100,
                     ) * createPropertyDto.cost_per_fraction;
                 let opbpPercent =
                     (totalOpbp * createPropertyDto.opbp.discount) / 100;
@@ -119,7 +124,7 @@ export class PropertyService {
                     Math.floor(
                         (createPropertyDto.csp.volume_available *
                             total_fractions) /
-                            100,
+                        100,
                     ) * createPropertyDto.cost_per_fraction;
                 let cspPercent =
                     (totalCsp * createPropertyDto.csp.discount) / 100;
@@ -183,9 +188,9 @@ export class PropertyService {
             findProperty.status !== 'design' &&
             (data.csp?.volume_available !== findProperty.csp.volume_available ||
                 data.opbp?.volume_available !==
-                    findProperty.opbp.volume_available ||
+                findProperty.opbp.volume_available ||
                 data.optp?.volume_available !==
-                    findProperty.optp.volume_available)
+                findProperty.optp.volume_available)
         ) {
             throw new HttpException(
                 'You cannot update the volume available of this project. It is already past the design stage.',
@@ -226,8 +231,8 @@ export class PropertyService {
         findProperty.total_price =
             data.fraction_per_unit && data.cost_per_fraction
                 ? data.total_units *
-                  data.fraction_per_unit *
-                  data.cost_per_fraction
+                data.fraction_per_unit *
+                data.cost_per_fraction
                 : findProperty.cost_per_unit;
 
         const updated = await findProperty.save();
@@ -245,7 +250,7 @@ export class PropertyService {
             let opbpAvailable =
                 Math.round(
                     findProperty.total_fractions *
-                        (findProperty['opbp'].volume_available / 100),
+                    (findProperty['opbp'].volume_available / 100),
                 ) - findProperty['opbp'].fractions_taken;
 
             let opbpPercent =
@@ -254,7 +259,7 @@ export class PropertyService {
             let optpAvailable =
                 Math.round(
                     findProperty.total_fractions *
-                        (findProperty['optp'].volume_available / 100),
+                    (findProperty['optp'].volume_available / 100),
                 ) - findProperty['optp'].fractions_taken;
 
             let optpPercent =
@@ -271,7 +276,7 @@ export class PropertyService {
             let cspAvailable =
                 Math.round(
                     findProperty.total_fractions *
-                        (findProperty['csp'].volume_available / 100),
+                    (findProperty['csp'].volume_available / 100),
                 ) - findProperty['csp'].fractions_taken;
 
             let cspPercent =
@@ -297,12 +302,12 @@ export class PropertyService {
 
         let availableFractions = Math.round(
             findProperty.total_fractions *
-                (findProperty[data.payment_plan].volume_available / 100),
+            (findProperty[data.payment_plan].volume_available / 100),
         );
 
         if (
             findProperty[data.payment_plan].fractions_taken +
-                data.fractions_bought >
+            data.fractions_bought >
             availableFractions
         ) {
             throw new HttpException(
@@ -371,5 +376,83 @@ export class PropertyService {
         }
 
         return findProperty;
+    }
+
+    /**
+     * Pushes this Urbco property to the Buyops platform as a draft asset.
+     * The Buyops admin must then explicitly publish it there.
+     */
+    async sendToBuyops(propertyId: string): Promise<{ buyopsAssetId: string }> {
+        const property = await this.propertyModel
+            .findById(propertyId)
+            .populate('type')
+            .populate('features.feature');
+
+        if (!property) {
+            throw new HttpException('Property not found', 404);
+        }
+
+        if (property.sent_to_buyops && property.buyops_asset_id) {
+            return { buyopsAssetId: property.buyops_asset_id };
+        }
+
+        const buyopsUrl = this.configService.get<string>('BUYOPS_API_URL');
+        const apiKey = this.configService.get<string>('URBCO_API_KEY');
+
+        if (!buyopsUrl || !apiKey) {
+            throw new HttpException(
+                'Buyops integration is not configured on this server',
+                500,
+            );
+        }
+
+        const payload = {
+            urbcoPropertyId: (property._id as any).toString(),
+            urbcoRef: property.ref,
+            name: property.name,
+            description: property.description,
+            address: [property.address, property.city, property.state, property.country]
+                .filter(Boolean)
+                .join(', '),
+            location: [property.city, property.state].filter(Boolean).join(', '),
+            constructionStage: property.status,
+            totalUnits: property.total_units,
+            availableUnits: property.total_fractions - property.fractions_taken,
+            fractionTotal: property.total_fractions,
+            price: property.total_price?.toString(),
+            fractionCost: property.cost_per_fraction?.toString(),
+            rentalYieldMax: property.rentals?.annual_yield_percent,
+            capitalAppreciation: property.capital_appreciation_percent,
+            firstPayoutDate: property.rentals?.first_dividend_date,
+            constructionStart: property.construction_start_date,
+            constructionEnd: property.construction_end_date,
+            bedrooms: property.details?.bedroom,
+            bathrooms: property.details?.bathroom,
+            area: property.areaSqm,
+        };
+
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(
+                    `${buyopsUrl}/public/import-from-urbco`,
+                    payload,
+                    { headers: { 'x-urbco-api-key': apiKey } },
+                ),
+            );
+
+            const buyopsAssetId: string = response.data.assetId;
+
+            await this.propertyModel.findByIdAndUpdate(propertyId, {
+                sent_to_buyops: true,
+                buyops_asset_id: buyopsAssetId,
+            });
+
+            return { buyopsAssetId };
+        } catch (err) {
+            const status = err?.response?.status || 500;
+            const message =
+                err?.response?.data?.message || 'Failed to send property to Buyops';
+            throw new HttpException(message, status);
+        }
     }
 }

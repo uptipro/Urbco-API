@@ -16,7 +16,7 @@ import { hasRoles } from 'src/auth/decorators/role.decorator';
 
 @Controller('properties')
 export class PropertyController {
-    constructor(private readonly propertyService: PropertyService) {}
+    constructor(private readonly propertyService: PropertyService) { }
 
     @Get('')
     async listProperties(@Query() query) {
@@ -91,6 +91,18 @@ export class PropertyController {
         );
         return {
             message: 'Property Status has been updated',
+            status: 'ok',
+            data,
+        };
+    }
+
+    @hasRoles('edit-properties')
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/send-to-buyops')
+    async sendToBuyops(@Param('id') id: string) {
+        const data = await this.propertyService.sendToBuyops(id);
+        return {
+            message: 'Property sent to Buyops as a draft asset',
             status: 'ok',
             data,
         };

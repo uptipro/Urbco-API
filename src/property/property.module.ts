@@ -3,15 +3,19 @@ import { PropertyService } from './property.service';
 import { PropertyController } from './property.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Property, PropertySchema } from './entities/property.entity';
+import { HttpModule } from '@nestjs/axios';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
     imports: [
         MongooseModule.forFeature([
             { name: Property.name, schema: PropertySchema },
         ]),
+        HttpModule,
+        ConfigModule,
     ],
     providers: [PropertyService],
     controllers: [PropertyController],
     exports: [PropertyService],
 })
-export class PropertyModule {}
+export class PropertyModule { }
