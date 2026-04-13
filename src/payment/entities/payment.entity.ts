@@ -1,39 +1,44 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import {
+    Entity, PrimaryGeneratedColumn, Column,
+    ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+} from 'typeorm';
 import { Investor } from 'src/investor/entities/investor.entity';
 import { Property } from 'src/property/entities/property.entity';
 
-export type PaymentDocument = Payment & Document;
-
-@Schema({ timestamps: true })
+@Entity('payments')
 export class Payment {
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Investor' })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @ManyToOne(() => Investor, { nullable: true, eager: false })
+    @JoinColumn({ name: 'investor_id' })
     investor: Investor;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Property' })
+    @ManyToOne(() => Property, { nullable: true, eager: false })
+    @JoinColumn({ name: 'property_id' })
     property: Property;
 
-    @Prop({ required: true })
+    @Column({ type: 'float' })
     amount: number;
 
-    @Prop({ required: true })
+    @Column()
     transaction_ref: string;
 
-    @Prop({
-        required: true,
-        default: 'pending',
-        enum: ['pending', 'success', 'failed', 'cancelled'],
-    })
+    @Column({ default: 'pending' })
     status: string;
 
-    @Prop()
-    narration: String;
+    @Column({ nullable: true })
+    narration: string;
 
-    @Prop({ required: true, default: 'naira' })
-    currency: String;
+    @Column({ default: 'naira' })
+    currency: string;
 
-    @Prop()
+    @Column({ nullable: true })
     transaction_date: Date;
-}
 
-export const PaymentSchema = SchemaFactory.createForClass(Payment);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

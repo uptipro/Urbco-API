@@ -1,21 +1,25 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-export type RequestsDocument = Requests & Document;
-
-@Schema({ timestamps: true })
+@Entity('requests')
 export class Requests {
-    @Prop()
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ nullable: true })
     name: string;
 
-    @Prop()
+    @Column({ nullable: true })
     phone: string;
 
-    @Prop()
+    @Column({ nullable: true })
     email: string;
 
-    @Prop()
+    @Column({ nullable: true })
     message: string;
-}
 
-export const Requestschema = SchemaFactory.createForClass(Requests);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

@@ -1,7 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Payment, PaymentSchema } from './entities/payment.entity';
-import { Investments, InvestmentsSchema } from './entities/investments.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Payment } from './entities/payment.entity';
+import { Investments } from './entities/investments.entity';
 import { PaymentService } from './payment.service';
 import { PaymentController } from './payment.controller';
 import { PropertyModule } from 'src/property/property.module';
@@ -11,10 +11,7 @@ import { InvestorModule } from 'src/investor/investor.module';
 
 @Module({
     imports: [
-        MongooseModule.forFeature([
-            { name: Payment.name, schema: PaymentSchema },
-            { name: Investments.name, schema: InvestmentsSchema },
-        ]),
+        TypeOrmModule.forFeature([Payment, Investments]),
         PropertyModule,
         MailsModule,
         HttpModule,
@@ -24,4 +21,4 @@ import { InvestorModule } from 'src/investor/investor.module';
     controllers: [PaymentController],
     exports: [PaymentService],
 })
-export class PaymentModule {}
+export class PaymentModule { }

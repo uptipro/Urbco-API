@@ -1,11 +1,8 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Payment, PaymentDocument } from './entities/payment.entity';
-import {
-    Investments,
-    InvestmentsDocument,
-} from './entities/investments.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Not, In } from 'typeorm';
+import { Payment } from './entities/payment.entity';
+import { Investments } from './entities/investments.entity';
 import { CreateInvestmentDto } from './dto/create-dto';
 import { PropertyService } from 'src/property/property.service';
 import { HttpService } from '@nestjs/axios';
@@ -19,11 +16,11 @@ import { InvestorService } from 'src/investor/investor.service';
 @Injectable({})
 export class PaymentService {
     constructor(
-        @InjectModel(Payment.name)
-        private readonly paymentModel: Model<PaymentDocument>,
+        @InjectRepository(Payment)
+        private readonly paymentRepository: Repository<Payment>,
 
-        @InjectModel(Investments.name)
-        private readonly investmentModel: Model<InvestmentsDocument>,
+        @InjectRepository(Investments)
+        private readonly investmentRepository: Repository<Investments>,
 
         private readonly propertyService: PropertyService,
         private readonly httpService: HttpService,
@@ -31,47 +28,33 @@ export class PaymentService {
         private readonly eventEmiiter: EventEmitter2,
         private readonly mailService: MailsService,
         private readonly investorService: InvestorService,
-    ) {}
+    ) { }
 
     async countInvestments() {
-        return this.investmentModel.countDocuments({
-            payment_status: { $in: ['part-payment', 'completed'] },
+        return this.investmentRepository.count({
+            where: { payment_status: In(['part-payment', 'completed']) },
         });
     }
 
     async countTransactions() {
-        return this.paymentModel.countDocuments({ status: 'success' });
+        return this.paymentRepository.count({ where: { status: 'success' } });
     }
 
     async findAllInvestments(query: any) {
-        let investorQuery = query.investor || undefined;
-        let planQuery = query.plan || undefined;
-
-        let filters = {
-            investor: investorQuery,
-            payment_plan: planQuery,
-            payment_status: { $ne: 'pending' },
-        };
-
-        let queries = JSON.parse(JSON.stringify(filters));
-
         const pageSize = 10;
         const page = Number(query.pageNumber) || 1;
 
-        const count = await this.investmentModel.countDocuments(queries);
+        const where: any = { payment_status: Not('pending') };
+        if (query.investor) where.investor = { id: query.investor };
+        if (query.plan) where.payment_plan = query.plan;
 
-        const investments = await this.investmentModel
-            .find(queries)
-            .sort({ createdAt: -1 })
-            .limit(pageSize)
-            .skip(pageSize * (page - 1))
-            .populate('property')
-            .populate({
-                path: 'investor',
-                select: ['_id', 'business_name', 'first_name', 'last_name'],
-            })
-            .populate('payment_breakdowns.payment')
-            .populate('created_by');
+        const [investments, count] = await this.investmentRepository.findAndCount({
+            where,
+            relations: ['property', 'investor', 'created_by'],
+            order: { createdAt: 'DESC' },
+            take: pageSize,
+            skip: pageSize * (page - 1),
+        });
 
         return {
             investments,
@@ -80,18 +63,11 @@ export class PaymentService {
     }
 
     async investmentReport(query: any) {
-        let investorQuery = query.investor || undefined;
-        let propertyQuery = query.property || undefined;
+        const where: any = { payment_status: Not('pending') };
+        if (query.investor) where.investor = { id: query.investor };
+        if (query.property) where.property = { id: query.property };
 
-        let filters = {
-            investor: investorQuery,
-            property: propertyQuery,
-            payment_status: { $ne: 'pending' },
-        };
-
-        let queries = JSON.parse(JSON.stringify(filters));
-
-        const investments = await this.investmentModel.find(queries);
+        const investments = await this.investmentRepository.find({ where });
 
         const optp = investments.filter((f) => f.payment_plan === 'optp');
         const opbp = investments.filter((f) => f.payment_plan === 'opbp');
@@ -139,13 +115,11 @@ export class PaymentService {
         const pageSize = 10;
         const page = Number(query.pageNumber) || 1;
 
-        const count = await this.paymentModel.countDocuments({});
-
-        const payments = await this.paymentModel
-            .find({})
-            .sort({ createdAt: -1 })
-            .limit(pageSize)
-            .skip(pageSize * (page - 1));
+        const [payments, count] = await this.paymentRepository.findAndCount({
+            order: { createdAt: 'DESC' },
+            take: pageSize,
+            skip: pageSize * (page - 1),
+        });
 
         return {
             payments,
@@ -171,21 +145,25 @@ export class PaymentService {
             newInvestor: createInvestmentDto.new_investor,
         };
 
-        let create = await this.investmentModel.create({
-            ...createInvestmentDto,
-            amount_paid: amounts.amountToPay,
-            payment_breakdowns: [
-                {
-                    percent_value: createInvestmentDto.optp_percent || 100,
-                },
-            ],
-            total_amount: amounts.totalAmount,
-            created_by: user,
-            payment_status:
-                createInvestmentDto.payment_plan === 'optp'
-                    ? 'part-payment'
-                    : 'completed',
-        });
+        const create = await this.investmentRepository.save(
+            this.investmentRepository.create({
+                ...createInvestmentDto,
+                property: { id: createInvestmentDto.property } as any,
+                investor: { id: createInvestmentDto.investor } as any,
+                created_by: { id: user } as any,
+                amount_paid: amounts.amountToPay,
+                payment_breakdowns: [
+                    {
+                        percent_value: createInvestmentDto.optp_percent || 100,
+                    },
+                ],
+                total_amount: amounts.totalAmount,
+                payment_status:
+                    createInvestmentDto.payment_plan === 'optp'
+                        ? 'part-payment'
+                        : 'completed',
+            }),
+        );
 
         if (create) {
             await this.propertyService.updateInvestors(data);
@@ -206,44 +184,50 @@ export class PaymentService {
             createInvestmentDto,
         );
 
-        let create = await this.paymentModel.create({
-            transaction_ref: this.generateTransactionReference(11),
-            amount: amounts.amountToPay,
-            investor: createInvestmentDto.investor,
-            property: createInvestmentDto.property,
-            narration: `Payment for Property`,
-        });
+        const create = await this.paymentRepository.save(
+            this.paymentRepository.create({
+                transaction_ref: String(this.generateTransactionReference(11)),
+                amount: amounts.amountToPay,
+                investor: { id: createInvestmentDto.investor } as any,
+                property: { id: createInvestmentDto.property } as any,
+                narration: `Payment for Property`,
+            }),
+        );
 
         if (createInvestmentDto.investment) {
-            let findInvestment = await this.investmentModel.findById(
-                createInvestmentDto.investment,
-            );
+            const findInvestment = await this.investmentRepository.findOne({
+                where: { id: createInvestmentDto.investment },
+            });
             if (!findInvestment) {
                 throw new HttpException('Investment not found', 404);
             } else {
-                findInvestment.payment_breakdowns.push({
-                    payment: create._id,
-                    percent_value: createInvestmentDto.optp_percent,
-                });
-
-                await findInvestment.save();
+                findInvestment.payment_breakdowns = [
+                    ...(findInvestment.payment_breakdowns || []),
+                    {
+                        payment_id: create.id,
+                        percent_value: createInvestmentDto.optp_percent,
+                    },
+                ];
+                await this.investmentRepository.save(findInvestment);
             }
         } else {
-            await this.investmentModel.create({
-                payment_breakdowns: [
-                    {
-                        payment: create._id,
-                        percent_value: createInvestmentDto.optp_percent || 100,
-                    },
-                ],
-                investor: create.investor,
-                amount_paid: amounts.amountToPay,
-                total_amount: amounts.totalAmount,
-                property: createInvestmentDto.property,
-                fractions_bought: createInvestmentDto.fractions_bought,
-                payment_plan: createInvestmentDto.payment_plan,
-                created_by: user,
-            });
+            await this.investmentRepository.save(
+                this.investmentRepository.create({
+                    payment_breakdowns: [
+                        {
+                            payment_id: create.id,
+                            percent_value: createInvestmentDto.optp_percent || 100,
+                        },
+                    ],
+                    investor: { id: create.investor?.id ?? createInvestmentDto.investor } as any,
+                    amount_paid: amounts.amountToPay,
+                    total_amount: amounts.totalAmount,
+                    property: { id: createInvestmentDto.property } as any,
+                    fractions_bought: createInvestmentDto.fractions_bought,
+                    payment_plan: createInvestmentDto.payment_plan,
+                    created_by: { id: user } as any,
+                }),
+            );
         }
         return create;
     }
@@ -275,29 +259,43 @@ export class PaymentService {
     }
 
     async findPaymentByRef(ref: string) {
-        return this.paymentModel.findOne({ transaction_ref: ref });
+        return this.paymentRepository.findOne({
+            where: { transaction_ref: ref },
+            relations: ['investor', 'property'],
+        });
     }
 
     async completeInvestment(id: any, investor: any, property: any) {
-        let find = await this.investmentModel
-            .findOne({
-                'payment_breakdowns.payment': id,
+        const find = await this.investmentRepository
+            .createQueryBuilder('inv')
+            .where(`inv.payment_breakdowns @> :pd::jsonb`, {
+                pd: JSON.stringify([{ payment_id: id }]),
             })
-            .populate('payment_breakdowns.payment');
+            .leftJoinAndSelect('inv.property', 'property')
+            .leftJoinAndSelect('inv.investor', 'investor')
+            .leftJoinAndSelect('inv.created_by', 'created_by')
+            .getOne();
 
-        let getPayment = find.payment_breakdowns.find(
-            (p: any) => p.payment._id.toString() == id,
+        const getPayment = find?.payment_breakdowns?.find(
+            (p: any) => p.payment_id === id,
         );
 
-        let checkIfInvestorExists = await this.investmentModel.findOne({
-            investor,
-            property,
+        const paymentRecord = await this.paymentRepository.findOne({ where: { id } });
+
+        const investorId = typeof investor === 'object' ? investor?.id : investor;
+        const propertyId = typeof property === 'object' ? property?.id : property;
+
+        const checkIfInvestorExists = await this.investmentRepository.findOne({
+            where: {
+                investor: { id: investorId },
+                property: { id: propertyId },
+            },
         });
 
         if (find) {
             find.payment_status =
                 find.payment_plan === 'optp' &&
-                find.payment_breakdowns.length < 3
+                    find.payment_breakdowns.length < 3
                     ? 'part-payment'
                     : 'completed';
 
@@ -305,11 +303,11 @@ export class PaymentService {
                 fractions_bought: find.fractions_bought,
                 amount_paid: find.amount_paid,
                 total_amount: find.total_amount,
-                id: find.property,
+                id: find.property?.id,
                 plan: find.payment_plan,
                 newInvestor:
                     checkIfInvestorExists &&
-                    checkIfInvestorExists.payment_status === 'success'
+                        checkIfInvestorExists.payment_status === 'success'
                         ? false
                         : true,
             };
@@ -319,27 +317,27 @@ export class PaymentService {
                 find.payment_breakdowns.length > 1 &&
                 getPayment
             ) {
-                find.amount_paid = find
-                    ? getPayment.payment.amount + find.amount_paid
+                find.amount_paid = paymentRecord
+                    ? paymentRecord.amount + find.amount_paid
                     : find.amount_paid;
             } else {
                 await this.propertyService.updateInvestors(data);
             }
 
-            await find.save();
+            await this.investmentRepository.save(find);
         }
         return find;
     }
 
     @OnEvent('update-investment')
     async updateInvestment(payload: any) {
-        let find = await this.findPaymentByRef(payload.ref);
-        if (find && find._id && find.status === 'pending') {
+        const find = await this.findPaymentByRef(payload.ref);
+        if (find && find.id && find.status === 'pending') {
             find.transaction_date = new Date();
             find.status = 'success';
 
-            let findInvestor = await this.investorService.findone({
-                _id: find.investor,
+            const findInvestor = await this.investorService.findone({
+                id: find.investor?.id,
             });
 
             if (findInvestor) {
@@ -353,10 +351,10 @@ export class PaymentService {
                 );
             }
 
-            await find.save();
+            await this.paymentRepository.save(find);
 
             await this.completeInvestment(
-                find._id,
+                find.id,
                 find.investor,
                 find.property,
             );

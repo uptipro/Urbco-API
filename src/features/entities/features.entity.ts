@@ -1,25 +1,30 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
 
-export type FeatureDocument = Feature & Document;
-
-@Schema({ timestamps: true })
+@Entity('features')
 export class Feature {
-    @Prop({})
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ nullable: true })
     name: string;
 
-    @Prop()
+    @Column({ nullable: true })
     description: string;
 
-    @Prop()
+    @Column({ nullable: true })
     image: string;
 
-    @Prop({ enum: ['active', 'inactive', 'deleted'], default: 'active' })
+    @Column({ default: 'active' })
     status: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+    @ManyToOne(() => User, { nullable: true, eager: false })
+    @JoinColumn({ name: 'last_updated_by_id' })
     last_updated_by: User;
-}
 
-export const FeatureSchema = SchemaFactory.createForClass(Feature);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

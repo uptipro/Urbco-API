@@ -1,53 +1,49 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import {
+    Entity, PrimaryGeneratedColumn, Column,
+    ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+} from 'typeorm';
 import { Investor } from 'src/investor/entities/investor.entity';
 import { Property } from 'src/property/entities/property.entity';
-import { Payment } from './payment.entity';
 import { User } from 'src/user/entities/user.entity';
 
-export type InvestmentsDocument = Investments & Document;
-
-@Schema({ timestamps: true })
+@Entity('investments')
 export class Investments {
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Property' })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @ManyToOne(() => Property, { nullable: true, eager: false })
+    @JoinColumn({ name: 'property_id' })
     property: Property;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Investor' })
+    @ManyToOne(() => Investor, { nullable: true, eager: false })
+    @JoinColumn({ name: 'investor_id' })
     investor: Investor;
 
-    @Prop({
-        type: [
-            {
-                percent_value: { type: Number },
-                payment: {
-                    type: MongooseSchema.Types.ObjectId,
-                    ref: 'Payment',
-                },
-            },
-        ],
-    })
-    payment_breakdowns: { percent_value: number; payment: Payment }[];
+    @Column({ type: 'jsonb', nullable: true })
+    payment_breakdowns: { percent_value: number; payment_id: string; payment?: any }[];
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+    @ManyToOne(() => User, { nullable: true, eager: false })
+    @JoinColumn({ name: 'created_by_id' })
     created_by: User;
 
-    @Prop()
+    @Column({ type: 'float', nullable: true })
     amount_paid: number;
 
-    @Prop()
+    @Column({ type: 'float', nullable: true })
     total_amount: number;
 
-    @Prop()
+    @Column({ nullable: true })
     fractions_bought: number;
 
-    @Prop({ enum: ['csp', 'opbp', 'optp'] })
+    @Column({ nullable: true })
     payment_plan: string;
 
-    @Prop({
-        enum: ['pending', 'part-payment', 'completed', 'reversed', 'failed'],
-        default: 'pending',
-    })
+    @Column({ default: 'pending' })
     payment_status: string;
-}
 
-export const InvestmentsSchema = SchemaFactory.createForClass(Investments);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

@@ -1,31 +1,31 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Role, RoleDocument } from './entities/role.entity';
-import { Model } from 'mongoose';
-import { Permission, PermissionDocument } from './entities/permission.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Role } from './entities/role.entity';
+import { Permission } from './entities/permission.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { permissions } from 'src/utils/data';
 
 @Injectable({})
 export class RoleService {
     constructor(
-        @InjectModel(Role.name)
-        private readonly roleModel: Model<RoleDocument>,
+        @InjectRepository(Role)
+        private readonly roleRepository: Repository<Role>,
 
-        @InjectModel(Permission.name)
-        private readonly permissionModel: Model<PermissionDocument>,
-    ) {}
+        @InjectRepository(Permission)
+        private readonly permissionRepository: Repository<Permission>,
+    ) { }
 
     getPermissions() {
-        return this.permissionModel.find({}).exec();
+        return this.permissionRepository.find();
     }
 
     findAll() {
-        return this.roleModel.find({}).exec();
+        return this.roleRepository.find();
     }
 
     count() {
-        return this.roleModel.countDocuments();
+        return this.roleRepository.count();
     }
 
     async loadPermissions() {
@@ -34,15 +34,16 @@ export class RoleService {
             let created = [];
             await Promise.all(
                 permissions.map(async (permission) => {
-                    let findPermissions = await this.permissionModel.findOne({
-                        code: permission.code,
+                    let findPermissions = await this.permissionRepository.findOne({
+                        where: { code: permission.code },
                     });
                     if (!findPermissions) {
-                        let createPermission =
-                            await this.permissionModel.create({
+                        let createPermission = await this.permissionRepository.save(
+                            this.permissionRepository.create({
                                 name: permission.name,
                                 code: permission.code,
-                            });
+                            }),
+                        );
                         if (createPermission) {
                             created.push(permission);
                         }
@@ -56,22 +57,24 @@ export class RoleService {
     }
 
     getRoles() {
-        return this.roleModel.find({}).exec();
+        return this.roleRepository.find();
     }
 
     async createRole(createRoleDto: CreateRoleDto) {
-        let find = await this.roleModel.findOne({ name: createRoleDto.name });
+        let find = await this.roleRepository.findOne({ where: { name: createRoleDto.name } });
 
         if (find) {
             throw new HttpException('Role already exists', 401);
         }
 
-        let create = await this.roleModel.create(createRoleDto);
+        let create = await this.roleRepository.save(
+            this.roleRepository.create(createRoleDto),
+        );
         return create;
     }
 
     async updateRole(id: string, createRoleDto: CreateRoleDto) {
-        let find = await this.roleModel.findById(id);
+        let find = await this.roleRepository.findOne({ where: { id } });
 
         if (!find) {
             throw new HttpException('Role not found', 404);
@@ -80,30 +83,25 @@ export class RoleService {
         find.name = createRoleDto.name || find.name;
         find.permissions = createRoleDto.permissions || find.permissions;
 
-        await find.save();
-
-        return find;
+        return this.roleRepository.save(find);
     }
 
     async loadSuperAdmin() {
-        let getList = permissions.map((p) => {
-            return p.code;
-        });
+        let getList = permissions.map((p) => p.code);
 
-        let find = await this.roleModel.findOne({ name: 'Super Admin' });
+        let find = await this.roleRepository.findOne({ where: { name: 'Super Admin' } });
 
         if (!find) {
-            let create = await this.roleModel.create({
-                name: 'Super Admin',
-                permissions: getList,
-            });
+            let create = await this.roleRepository.save(
+                this.roleRepository.create({
+                    name: 'Super Admin',
+                    permissions: getList,
+                }),
+            );
             return create;
         } else {
             find.permissions = getList;
-
-            await find.save();
-
-            return find;
+            return this.roleRepository.save(find);
         }
     }
 }

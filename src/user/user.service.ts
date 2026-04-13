@@ -3,9 +3,9 @@ import {
     Injectable,
     UnauthorizedException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument } from './entities/user.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -14,48 +14,43 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 @Injectable({})
 export class UserService {
     constructor(
-        @InjectModel(User.name)
-        private readonly userModel: Model<UserDocument>,
-    ) {}
+        @InjectRepository(User)
+        private readonly userRepository: Repository<User>,
+    ) { }
 
     findById(id: string) {
-        return this.userModel.findById(id).populate('role_id');
+        return this.userRepository.findOne({ where: { id }, relations: ['role_id'] });
     }
 
     findone(field: any) {
-        return this.userModel.findOne(field);
+        return this.userRepository.findOne({ where: field, relations: ['role_id'] });
     }
 
     findAll() {
-        return this.userModel.find({}).exec();
+        return this.userRepository.find();
     }
 
     count() {
-        return this.userModel.countDocuments();
+        return this.userRepository.count();
     }
 
     async filterAndPaginateUsers(query: any) {
-        let statusQuery = query.status || undefined;
-        let typeQuery = query.userType || undefined;
-
-        let filters = {
-            status: statusQuery,
-            user_type: typeQuery,
-        };
-
-        let queries = JSON.parse(JSON.stringify(filters));
+        const where: any = {};
+        if (query.status) where.status = query.status;
+        if (query.userType) where.user_type = query.userType;
 
         const pageSize = 10;
         const page = Number(query.pageNumber) || 1;
 
-        const count = await this.userModel.countDocuments(queries);
+        const [rawUsers, count] = await this.userRepository.findAndCount({
+            where,
+            relations: ['role_id'],
+            order: { createdAt: 'DESC' },
+            take: pageSize,
+            skip: pageSize * (page - 1),
+        });
 
-        const users = await this.userModel
-            .find(queries, { password: 0 })
-            .populate('role_id')
-            .sort({ createdAt: -1 })
-            .limit(pageSize)
-            .skip(pageSize * (page - 1));
+        const users = rawUsers.map(({ password, ...rest }) => rest);
 
         return {
             users,
@@ -64,8 +59,8 @@ export class UserService {
     }
 
     async createUser(createUserDto: CreateUserDto) {
-        const findUser = await this.userModel.find({
-            $or: [
+        const findUser = await this.userRepository.find({
+            where: [
                 { email: createUserDto.email.trim().toLowerCase() },
                 { mobile: createUserDto.mobile },
             ],
@@ -80,16 +75,18 @@ export class UserService {
             10,
         );
 
-        let create = await this.userModel.create({
-            ...createUserDto,
-            email: createUserDto.email.trim().toLowerCase(),
-            password: hash,
-        });
+        let create = await this.userRepository.save(
+            this.userRepository.create({
+                ...createUserDto,
+                email: createUserDto.email.trim().toLowerCase(),
+                password: hash,
+            }),
+        );
         return create;
     }
 
     async update(id: string, updateUserDto: UpdateUserDto) {
-        const data = await this.userModel.findById(id);
+        const data = await this.userRepository.findOne({ where: { id } });
         if (!data) {
             throw new HttpException('User not found', 404);
         }
@@ -98,7 +95,7 @@ export class UserService {
         data.mobile = updateUserDto.mobile || data.mobile;
         data.role_id = updateUserDto.role_id || data.role_id;
 
-        const updated = await data.save();
+        const updated = await this.userRepository.save(data);
 
         return {
             _id: updated.id,
@@ -109,24 +106,26 @@ export class UserService {
     }
 
     async userDetails(id: string) {
-        const data = await this.userModel
-            .findById(id, { password: 0 })
-            .populate('role_id');
+        const data = await this.userRepository.findOne({
+            where: { id },
+            relations: ['role_id'],
+        });
         if (!data) {
             throw new HttpException('User not found', 404);
         }
 
-        return data;
+        const { password, ...rest } = data as any;
+        return rest;
     }
 
     async verifyUser(email: string) {
-        const data = await this.userModel.findOne({ email });
+        const data = await this.userRepository.findOne({ where: { email } });
         if (!data) {
             throw new HttpException('User not found', 404);
         }
         data.verified = true;
 
-        const updated = await data.save();
+        const updated = await this.userRepository.save(data);
 
         return {
             _id: updated.id,
@@ -135,13 +134,13 @@ export class UserService {
     }
 
     async resetPassword(email: string, password: string) {
-        const data = await this.userModel.findOne({ email });
+        const data = await this.userRepository.findOne({ where: { email } });
         if (!data) {
             throw new HttpException('User not found', 404);
         }
         const hash = await bcrypt.hash(password, 10);
         data.password = hash;
-        const updated = await data.save();
+        const updated = await this.userRepository.save(data);
         return {
             _id: updated.id,
             email: updated.email,
@@ -149,13 +148,13 @@ export class UserService {
     }
 
     async activateUser(id: string) {
-        const data = await this.userModel.findById(id);
+        const data = await this.userRepository.findOne({ where: { id } });
         if (!data) {
             throw new HttpException('User not found', 404);
         }
         data.status = 'active';
 
-        const updated = await data.save();
+        const updated = await this.userRepository.save(data);
 
         return {
             _id: updated.id,
@@ -165,13 +164,13 @@ export class UserService {
     }
 
     async deactivateUser(id: string) {
-        const data = await this.userModel.findById(id);
+        const data = await this.userRepository.findOne({ where: { id } });
         if (!data) {
             throw new HttpException('User not found', 404);
         }
         data.status = 'inactive';
 
-        const updated = await data.save();
+        const updated = await this.userRepository.save(data);
 
         return {
             _id: updated.id,
@@ -181,7 +180,7 @@ export class UserService {
     }
 
     async changePassword(id: string, changePasswordDto: ChangePasswordDto) {
-        const data = await this.userModel.findById(id);
+        const data = await this.userRepository.findOne({ where: { id } });
         if (!data) {
             throw new HttpException('User not found', 404);
         }
@@ -202,7 +201,7 @@ export class UserService {
         const hash = await bcrypt.hash(changePasswordDto.new_password, 10);
 
         data.password = hash;
-        const updated = await data.save();
+        const updated = await this.userRepository.save(data);
 
         return {
             _id: updated.id,
@@ -211,12 +210,11 @@ export class UserService {
     }
 
     async updateTime(id: string) {
-        const data = await this.userModel.findById(id);
-
-        data.last_login = new Date();
-
-        await data.save();
-
+        const data = await this.userRepository.findOne({ where: { id } });
+        if (data) {
+            data.last_login = new Date();
+            await this.userRepository.save(data);
+        }
         return 'Saved';
     }
 }

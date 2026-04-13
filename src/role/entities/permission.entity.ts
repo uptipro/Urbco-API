@@ -1,15 +1,19 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-export type PermissionDocument = Permission & Document;
-
-@Schema({ timestamps: true })
+@Entity('permissions')
 export class Permission {
-    @Prop()
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ nullable: true })
     name: string;
 
-    @Prop()
+    @Column({ nullable: true })
     code: string;
-}
 
-export const PermissionSchema = SchemaFactory.createForClass(Permission);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

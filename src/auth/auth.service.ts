@@ -7,9 +7,9 @@ import { UserService } from 'src/user/user.service';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
-import { Otp, OtpDocument } from './entities/otp.entity';
-import { Model } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Otp } from './entities/otp.entity';
+import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { VerifyOtpDto } from './dto/otp.dto';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
@@ -18,11 +18,11 @@ import { PasswordDto } from './dto/password.dto';
 @Injectable({})
 export class AuthService {
     constructor(
-        @InjectModel(Otp.name)
-        private readonly otpModel: Model<OtpDocument>,
+        @InjectRepository(Otp)
+        private readonly otpRepository: Repository<Otp>,
         private readonly userService: UserService,
         private readonly jwtService: JwtService,
-    ) {}
+    ) { }
 
     generateJwt(user: string, type: string) {
         const payload = { id: user, type };
@@ -33,14 +33,16 @@ export class AuthService {
 
     async sendOtp(email: string) {
         const currentDate = new Date();
-        const createOtp = await this.otpModel.create({
-            code: '12345',
-            email,
-            expires_in: new Date(
-                currentDate.setMinutes(currentDate.getMinutes() + 60),
-            ),
-            token: uuidv4(),
-        });
+        const createOtp = await this.otpRepository.save(
+            this.otpRepository.create({
+                code: '12345',
+                email,
+                expires_in: new Date(
+                    currentDate.setMinutes(currentDate.getMinutes() + 60),
+                ),
+                token: uuidv4(),
+            }),
+        );
 
         return {
             token: createOtp.token,
@@ -50,34 +52,34 @@ export class AuthService {
     }
 
     async verifyOtp(veriyOtpDto: VerifyOtpDto) {
-        const findCode = await this.otpModel.findOne({
-            email: veriyOtpDto.email,
-            code: veriyOtpDto.code,
-            token: veriyOtpDto.token,
+        const findCode = await this.otpRepository.findOne({
+            where: {
+                email: veriyOtpDto.email,
+                code: veriyOtpDto.code,
+                token: veriyOtpDto.token,
+            },
         });
 
-        const getUser = await this.userService
-            .findone({
-                email: veriyOtpDto.email.toLowerCase(),
-            })
-            .populate('role_id');
+        const getUser = await this.userService.findone({
+            email: veriyOtpDto.email.toLowerCase(),
+        });
 
         if (!findCode) {
             throw new HttpException('Invalid OTP', 401);
         }
 
         if (findCode && new Date() > new Date(findCode.expires_in)) {
-            await this.otpModel.findByIdAndRemove(findCode._id);
+            await this.otpRepository.delete({ id: findCode.id });
             throw new HttpException('OTP has expired', 401);
         }
 
-        await this.otpModel.deleteMany({ email: veriyOtpDto.email });
+        await this.otpRepository.delete({ email: veriyOtpDto.email });
 
         await this.userService.verifyUser(getUser.email);
 
         if (veriyOtpDto.login) {
-            const token = this.generateJwt(getUser._id, getUser.user_type);
-            const removePassword = { ...getUser.toObject(), password: null };
+            const token = this.generateJwt(getUser.id, getUser.user_type);
+            const { password, ...removePassword } = getUser as any;
 
             return { ...removePassword, ...token };
         } else {
@@ -92,9 +94,7 @@ export class AuthService {
         const email = loginDto.email.toLowerCase();
         const password = loginDto.password;
 
-        const getUser = await this.userService
-            .findone({ email })
-            .populate('role_id');
+        const getUser = await this.userService.findone({ email });
 
         if (!getUser || !bcrypt.compareSync(password, getUser.password)) {
             throw new UnauthorizedException('Invalid Credentials');
@@ -107,13 +107,10 @@ export class AuthService {
         if (!getUser.verified) {
             return this.sendOtp(getUser.email);
         } else {
-            this.userService.updateTime(getUser._id);
-            const removePassword = {
-                ...getUser.toObject(),
-                password: null,
-            };
+            this.userService.updateTime(getUser.id);
+            const { password: pw, ...removePassword } = getUser as any;
 
-            const token = this.generateJwt(getUser._id, getUser.user_type);
+            const token = this.generateJwt(getUser.id, getUser.user_type);
             return { ...removePassword, ...token };
         }
     }

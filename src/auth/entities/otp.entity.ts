@@ -1,23 +1,25 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-export type OtpDocument = Otp & Document;
-
-@Schema({ timestamps: true })
+@Entity('otps')
 export class Otp {
-    @Prop({
-        required: true,
-    })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column()
     email: string;
 
-    @Prop({ required: true })
+    @Column()
     code: string;
 
-    @Prop({ required: true })
+    @Column()
     expires_in: Date;
 
-    @Prop({ required: true })
+    @Column()
     token: string;
-}
 
-export const OtpSchema = SchemaFactory.createForClass(Otp);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

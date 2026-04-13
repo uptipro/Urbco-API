@@ -1,44 +1,45 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Role } from 'src/role/entities/role.entity';
 
-export type UserDocument = User & Document;
-
-@Schema({ timestamps: true })
+@Entity('users')
 export class User {
-    @Prop()
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ nullable: true })
     first_name: string;
 
-    @Prop()
+    @Column({ nullable: true })
     last_name: string;
 
-    @Prop({ required: true })
+    @Column()
     email: string;
 
-    @Prop({ required: true })
+    @Column()
     mobile: string;
 
-    @Prop({ required: true })
+    @Column()
     password: string;
 
-    @Prop({
-        required: true,
-        enum: ['active', 'inactive'],
-        default: 'active',
-    })
+    @Column({ default: 'active' })
     status: string;
 
-    @Prop({ required: true, enum: ['user', 'admin'], default: 'admin' })
+    @Column({ default: 'admin' })
     user_type: string;
 
-    @Prop({ default: false })
+    @Column({ default: false })
     verified: boolean;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Role' })
+    @ManyToOne(() => Role, { nullable: true, eager: false })
+    @JoinColumn({ name: 'role_id' })
     role_id: Role;
 
-    @Prop()
+    @Column({ nullable: true })
     last_login: Date;
-}
 
-export const UserSchema = SchemaFactory.createForClass(User);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

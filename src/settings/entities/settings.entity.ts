@@ -1,21 +1,25 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-export type SettingsDocument = Settings & Document;
-
-@Schema({ timestamps: true })
+@Entity('settings')
 export class Settings {
-    @Prop()
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ nullable: true })
     quote: string;
 
-    @Prop()
+    @Column({ nullable: true })
     quoteArthur: string;
 
-    @Prop()
+    @Column({ nullable: true })
     investment_insight: string;
 
-    @Prop()
+    @Column({ type: 'jsonb', nullable: true })
     testimonials: { message: string; user: string }[];
-}
 
-export const SettingSchema = SchemaFactory.createForClass(Settings);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

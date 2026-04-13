@@ -3,40 +3,40 @@ import {
     Injectable,
     UnauthorizedException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { Investor, InvestorDocument } from './entities/investor.entity';
+import { Investor } from './entities/investor.entity';
 import { CreateInvestorDto } from './dto/create-investor.dto';
 import { JwtService } from '@nestjs/jwt';
-import { Otp, OtpDocument } from 'src/auth/entities/otp.entity';
+import { Otp } from 'src/auth/entities/otp.entity';
 import { MailsService } from 'src/mails/mails.service';
 
 @Injectable({})
 export class InvestorService {
     constructor(
-        @InjectModel(Investor.name)
-        private readonly investorModel: Model<InvestorDocument>,
+        @InjectRepository(Investor)
+        private readonly investorRepository: Repository<Investor>,
 
-        @InjectModel(Otp.name)
-        private readonly otpModel: Model<OtpDocument>,
+        @InjectRepository(Otp)
+        private readonly otpRepository: Repository<Otp>,
 
         private readonly jwtService: JwtService,
 
         private readonly mailService: MailsService,
-    ) {}
+    ) { }
 
     findone(field: any) {
-        return this.investorModel.findOne(field);
+        return this.investorRepository.findOne({ where: field });
     }
 
     findAll() {
-        return this.investorModel.find({}).exec();
+        return this.investorRepository.find();
     }
 
     count() {
-        return this.investorModel.countDocuments();
+        return this.investorRepository.count();
     }
 
     generateJwt(user: string, type: string) {
@@ -47,39 +47,28 @@ export class InvestorService {
     }
 
     async filterAndPaginate(query: any) {
-        let typeQuery = query.userType || undefined;
-
-        let filters = {
-            user_type: typeQuery,
-        };
-
-        let queries = JSON.parse(JSON.stringify(filters));
-
-        let mainQuery = query.keyword
-            ? {
-                  $or: [
-                      { first_name: { $regex: query.keyword, $options: 'i' } },
-                      { last_name: { $regex: query.keyword, $options: 'i' } },
-                      {
-                          business_name: {
-                              $regex: query.keyword,
-                              $options: 'i',
-                          },
-                      },
-                  ],
-              }
-            : queries;
-
         const pageSize = 10;
         const page = Number(query.pageNumber) || 1;
 
-        const count = await this.investorModel.countDocuments(mainQuery);
+        const qb = this.investorRepository.createQueryBuilder('investor');
 
-        const investors = await this.investorModel
-            .find(mainQuery, { password: 0 })
-            .sort({ createdAt: -1 })
-            .limit(pageSize)
+        if (query.userType) {
+            qb.andWhere('investor.user_type = :userType', { userType: query.userType });
+        }
+
+        if (query.keyword) {
+            const kw = `%${query.keyword.toLowerCase()}%`;
+            qb.andWhere(
+                '(LOWER(investor.first_name) LIKE :kw OR LOWER(investor.last_name) LIKE :kw OR LOWER(investor.business_name) LIKE :kw)',
+                { kw },
+            );
+        }
+
+        qb.orderBy('investor."createdAt"', 'DESC')
+            .take(pageSize)
             .skip(pageSize * (page - 1));
+
+        const [investors, count] = await qb.getManyAndCount();
 
         return {
             investors,
@@ -88,8 +77,8 @@ export class InvestorService {
     }
 
     async createInvestor(createInvestorDto: CreateInvestorDto) {
-        const findInvestor = await this.investorModel.findOne({
-            email: createInvestorDto.email.toLowerCase(),
+        const findInvestor = await this.investorRepository.findOne({
+            where: { email: createInvestorDto.email.toLowerCase() },
         });
 
         if (findInvestor) {
@@ -101,11 +90,13 @@ export class InvestorService {
 
         const hash = await bcrypt.hash(createInvestorDto.password, 10);
 
-        let create = await this.investorModel.create({
-            ...createInvestorDto,
-            password: hash,
-            email: createInvestorDto.email.toLowerCase(),
-        });
+        const create = await this.investorRepository.save(
+            this.investorRepository.create({
+                ...createInvestorDto,
+                password: hash,
+                email: createInvestorDto.email.toLowerCase(),
+            }),
+        );
 
         this.mailService.sendMail(
             createInvestorDto.email.toLowerCase(),
@@ -122,8 +113,8 @@ export class InvestorService {
     }
 
     async loginInvestor(req: any) {
-        const findInvestor = await this.investorModel.findOne({
-            email: req.email,
+        const findInvestor = await this.investorRepository.findOne({
+            where: { email: req.email },
         });
 
         if (
@@ -133,20 +124,16 @@ export class InvestorService {
             throw new UnauthorizedException('Invalid Credentials');
         }
 
-        const removePassword = {
-            ...findInvestor.toObject(),
-            password: null,
-        };
-
+        const { password, ...removePassword } = findInvestor as any;
         const token = this.generateJwt(
-            findInvestor._id,
+            findInvestor.id,
             findInvestor.user_type,
         );
         return { ...removePassword, ...token };
     }
 
     async investorDetails(id: string) {
-        const data = await this.investorModel.findById(id);
+        const data = await this.investorRepository.findOne({ where: { id } });
         if (!data) {
             throw new HttpException('Investor not found', 404);
         }
@@ -154,7 +141,7 @@ export class InvestorService {
     }
 
     async update(id: string, updateInvestorDto: CreateInvestorDto) {
-        const data = await this.investorModel.findById(id);
+        const data = await this.investorRepository.findOne({ where: { id } });
         if (!data) {
             throw new HttpException('Investor not found', 404);
         }
@@ -163,7 +150,7 @@ export class InvestorService {
         data.phone = updateInvestorDto.phone || data.phone;
         data.title = updateInvestorDto.title || data.title;
 
-        const updated = await data.save();
+        const updated = await this.investorRepository.save(data);
 
         return {
             _id: updated.id,
@@ -182,23 +169,25 @@ export class InvestorService {
     async forgotPassword(email: string) {
         const currentDate = new Date();
 
-        const data = await this.investorModel.findOne({
-            email: email.toLowerCase(),
+        const data = await this.investorRepository.findOne({
+            where: { email: email.toLowerCase() },
         });
         if (!data) {
             throw new HttpException('Account does not exist', 404);
         }
 
-        let code = this.randomOTP(5);
+        const code = this.randomOTP(5);
 
-        const createOtp = await this.otpModel.create({
-            code,
-            email: email.toLowerCase(),
-            expires_in: new Date(
-                currentDate.setMinutes(currentDate.getMinutes() + 60),
-            ),
-            token: uuidv4(),
-        });
+        const createOtp = await this.otpRepository.save(
+            this.otpRepository.create({
+                code: String(code),
+                email: email.toLowerCase(),
+                expires_in: new Date(
+                    currentDate.setMinutes(currentDate.getMinutes() + 60),
+                ),
+                token: uuidv4(),
+            }),
+        );
 
         this.mailService.sendMail(
             email.toLowerCase(),
@@ -218,14 +207,16 @@ export class InvestorService {
     }
 
     async changePassword(changeDto: any) {
-        const findCode = await this.otpModel.findOne({
-            email: changeDto.email,
-            code: changeDto.otp,
-            token: changeDto.token,
+        const findCode = await this.otpRepository.findOne({
+            where: {
+                email: changeDto.email,
+                code: changeDto.otp,
+                token: changeDto.token,
+            },
         });
 
-        const findInvestor = await this.investorModel.findOne({
-            email: changeDto.email.toLowerCase(),
+        const findInvestor = await this.investorRepository.findOne({
+            where: { email: changeDto.email.toLowerCase() },
         });
 
         if (!findCode) {
@@ -233,17 +224,17 @@ export class InvestorService {
         }
 
         if (findCode && new Date() > new Date(findCode.expires_in)) {
-            await this.otpModel.findByIdAndRemove(findCode._id);
+            await this.otpRepository.delete({ id: findCode.id });
             throw new HttpException('OTP has expired', 401);
         }
 
-        await this.otpModel.deleteMany({
+        await this.otpRepository.delete({
             email: changeDto.email.toLowerCase(),
         });
 
         const hash = await bcrypt.hash(changeDto.password, 10);
         findInvestor.password = hash;
-        await findInvestor.save();
+        await this.investorRepository.save(findInvestor);
 
         return {
             email: changeDto.email,

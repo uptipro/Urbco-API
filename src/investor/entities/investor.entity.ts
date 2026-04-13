@@ -1,66 +1,67 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-export type InvestorDocument = Investor & Document;
-
-@Schema({ timestamps: true })
+@Entity('investors')
 export class Investor {
-    @Prop()
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ nullable: true })
     title: string;
 
-    @Prop({
-        enum: ['individual', 'business', 'couple', 'cooperative'],
-        required: true,
-    })
+    @Column()
     user_type: string;
 
-    @Prop()
+    @Column({ nullable: true })
     first_name: string;
 
-    @Prop()
+    @Column({ nullable: true })
     last_name: string;
 
-    @Prop()
+    @Column({ nullable: true })
     phone: string;
 
-    @Prop()
+    @Column({ nullable: true })
     email: string;
 
-    @Prop()
+    @Column({ nullable: true })
     date_of_birth: Date;
 
-    @Prop({ enum: ['single', 'married'] })
+    @Column({ nullable: true })
     marital_status: string;
 
-    @Prop({ enum: ['male', 'female'] })
+    @Column({ nullable: true })
     gender: string;
 
-    @Prop()
+    @Column({ nullable: true })
     address: string;
 
-    @Prop()
+    @Column({ nullable: true })
     business_name: string;
 
-    @Prop()
+    @Column({ nullable: true })
     business_reg_no: string;
 
-    @Prop()
+    @Column({ nullable: true })
     business_address: string;
 
-    @Prop()
+    @Column({ nullable: true })
     date_of_incoporation: Date;
 
-    @Prop()
+    @Column({ nullable: true })
     business_country: string;
 
-    @Prop()
+    @Column({ nullable: true })
     business_email: string;
 
-    @Prop()
+    @Column({ nullable: true })
     business_phone: string;
 
-    @Prop({ required: true })
+    @Column()
     password: string;
-}
 
-export const InvestorSchema = SchemaFactory.createForClass(Investor);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

@@ -1,197 +1,135 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
-import { Feature } from 'src/features/entities/features.entity';
+import {
+    Entity, PrimaryGeneratedColumn, Column,
+    ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+} from 'typeorm';
 import { Types } from 'src/types/entities/types.entity';
 import { User } from 'src/user/entities/user.entity';
 
-export type PropertyDocument = Property & Document;
-
-@Schema({ _id: false })
-class Detail {
-    @Prop({})
-    bathroom: number;
-
-    @Prop()
-    kitchen: number;
-
-    @Prop()
-    bedroom: number;
-
-    @Prop()
-    toilet: number;
-}
-
-@Schema({ _id: false })
-class Rentals {
-    @Prop()
-    rent_per_quater: number;
-
-    @Prop()
-    rent_frequency: string;
-
-    @Prop()
-    annual_yield_percent: number;
-
-    @Prop()
-    yield_assumption_percent: number;
-
-    @Prop()
-    first_dividend_date: Date;
-}
-
-@Schema({ _id: false })
-class BulletPayment {
-    @Prop()
-    discount: number;
-
-    @Prop()
-    volume_available: number;
-
-    @Prop({ default: 0 })
-    fractions_taken: number;
-}
-
-@Schema({ _id: false })
-class BulletPayment2 {
-    @Prop()
-    discount: number;
-
-    @Prop()
-    volume_available: number;
-
-    @Prop()
-    stages: number;
-
-    @Prop()
-    percent: string;
-
-    @Prop({ default: 0 })
-    fractions_taken: number;
-}
-
-@Schema({ timestamps: true })
+@Entity('properties')
 export class Property {
-    @Prop({ required: true })
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column()
     name: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+    @ManyToOne(() => User, { nullable: true, eager: false })
+    @JoinColumn({ name: 'created_by_id' })
     created_by: User;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+    @ManyToOne(() => User, { nullable: true, eager: false })
+    @JoinColumn({ name: 'last_updated_by_id' })
     last_updated_by: User;
 
-    @Prop({ required: true, unique: true })
+    @Column({ unique: true })
     ref: string;
 
-    @Prop()
+    @Column({ type: 'jsonb', nullable: true })
     images: { url: string; for: string; order: number }[];
 
-    @Prop({ required: true, default: 0 })
+    @Column({ default: 0 })
     investors_count: number;
 
-    @Prop({ required: true })
+    @Column()
     total_units: number;
 
-    @Prop({ required: true })
+    @Column()
     total_fractions: number;
 
-    @Prop({ required: true })
+    @Column({ type: 'float' })
     investment_available: number;
 
-    @Prop({ required: true })
+    @Column({ type: 'float' })
     total_price: number;
 
-    @Prop({ required: true })
+    @Column({ type: 'float' })
     cost_per_unit: number;
 
-    @Prop({ required: true })
+    @Column({ type: 'float' })
     cost_per_fraction: number;
 
-    @Prop({ required: true, default: 0 })
+    @Column({ default: 0 })
     fractions_taken: number;
 
-    @Prop({ default: 0 })
+    @Column({ default: 0, nullable: true })
     discount_claimed: number;
 
-    @Prop({})
+    @Column({ type: 'float', nullable: true })
     total_discount_claimed: number;
 
-    @Prop({
-        type: [
-            {
-                value: { type: String },
-                feature: {
-                    type: MongooseSchema.Types.ObjectId,
-                    ref: 'Feature',
-                },
-            },
-        ],
-    })
-    features: { quantity: number; feature: Feature }[];
+    @Column({ type: 'jsonb', nullable: true })
+    features: { quantity: number; feature_id: string }[];
 
-    @Prop()
-    details: Detail;
+    @Column({ type: 'jsonb', nullable: true })
+    details: { bathroom: number; kitchen: number; bedroom: number; toilet: number };
 
-    @Prop()
+    @Column({ type: 'float', nullable: true })
     areaSqm: number;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Types' })
+    @ManyToOne(() => Types, { nullable: true, eager: false })
+    @JoinColumn({ name: 'type_id' })
     type: Types;
 
-    @Prop({ required: true })
+    @Column()
     short_description: string;
 
-    @Prop({ required: true })
+    @Column({ type: 'text' })
     description: string;
 
-    @Prop({
-        required: true,
-        default: 'design',
-        enum: ['design', 'construction', 'completed'],
-    })
+    @Column({ default: 'design' })
     status: string;
 
-    @Prop()
+    @Column({ nullable: true })
     address: string;
 
-    @Prop()
+    @Column({ nullable: true })
     city: string;
 
-    @Prop()
+    @Column({ nullable: true })
     state: string;
 
-    @Prop({ default: 'nigeria' })
+    @Column({ default: 'nigeria' })
     country: string;
 
-    @Prop()
+    @Column({ nullable: true })
     construction_start_date: Date;
 
-    @Prop()
+    @Column({ nullable: true })
     construction_end_date: Date;
 
-    @Prop()
+    @Column({ nullable: true })
     roofing_date: Date;
 
-    @Prop()
-    rentals: Rentals;
+    @Column({ type: 'jsonb', nullable: true })
+    rentals: {
+        rent_per_quater: number;
+        rent_frequency: string;
+        annual_yield_percent: number;
+        yield_assumption_percent: number;
+        first_dividend_date: Date;
+    };
 
-    @Prop()
+    @Column({ type: 'float', nullable: true })
     capital_appreciation_percent: number;
 
-    @Prop()
-    csp: BulletPayment;
+    @Column({ type: 'jsonb', nullable: true })
+    csp: { discount: number; volume_available: number; fractions_taken: number };
 
-    @Prop()
-    opbp: BulletPayment;
+    @Column({ type: 'jsonb', nullable: true })
+    opbp: { discount: number; volume_available: number; fractions_taken: number };
 
-    @Prop()
-    optp: BulletPayment2;
+    @Column({ type: 'jsonb', nullable: true })
+    optp: { discount: number; volume_available: number; stages: number; percent: string; fractions_taken: number };
 
-    @Prop({ default: false })
+    @Column({ default: false })
     sent_to_buyops: boolean;
 
-    @Prop()
+    @Column({ nullable: true })
     buyops_asset_id: string;
-}
 
-export const PropertySchema = SchemaFactory.createForClass(Property);
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}
