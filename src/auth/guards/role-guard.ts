@@ -21,6 +21,15 @@ export class RolesGuard implements CanActivate {
         const request = context.switchToHttp().getRequest();
         const user = await this.userService.findById(request.user.id);
 
+        // Super-admins bypass all role checks
+        if (user.user_type === 'admin') {
+            return true;
+        }
+
+        if (!user.role_id || !user.role_id.permissions) {
+            return false;
+        }
+
         const found = user.role_id.permissions.some(
             (r) => roles.indexOf(r) >= 0,
         );
