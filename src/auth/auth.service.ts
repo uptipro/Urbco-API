@@ -104,15 +104,15 @@ export class AuthService {
             throw new HttpException('Access has been denied', 401);
         }
 
-        if (!getUser.verified) {
-            return this.sendOtp(getUser.email);
-        } else {
+        // if (!getUser.verified) {
+        //     return this.sendOtp(getUser.email);
+        // } else {
             this.userService.updateTime(getUser.id);
             const { password: pw, ...removePassword } = getUser as any;
 
             const token = this.generateJwt(getUser.id, getUser.user_type);
             return { ...removePassword, ...token };
-        }
+        // }
     }
 
     async register(createUserDto: CreateUserDto) {
