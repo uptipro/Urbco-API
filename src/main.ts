@@ -9,7 +9,7 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe());
     app.use(bodyParser.json({ limit: '5mb' }));
     app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
-    app.enableCors();
+    app.enableCors({ origin: '*', methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS', credentials: false });
     await app.listen(8080);
 }
 bootstrap();
