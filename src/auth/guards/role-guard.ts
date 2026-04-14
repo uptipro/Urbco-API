@@ -8,7 +8,7 @@ export class RolesGuard implements CanActivate {
         private reflector: Reflector,
 
         private userService: UserService,
-    ) {}
+    ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const roles = this.reflector.get<string[]>(

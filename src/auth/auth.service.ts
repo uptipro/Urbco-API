@@ -107,11 +107,11 @@ export class AuthService {
         // if (!getUser.verified) {
         //     return this.sendOtp(getUser.email);
         // } else {
-            this.userService.updateTime(getUser.id);
-            const { password: pw, ...removePassword } = getUser as any;
+        this.userService.updateTime(getUser.id);
+        const { password: pw, ...removePassword } = getUser as any;
 
-            const token = this.generateJwt(getUser.id, getUser.user_type);
-            return { ...removePassword, ...token };
+        const token = this.generateJwt(getUser.id, getUser.user_type);
+        return { ...removePassword, ...token };
         // }
     }
 
