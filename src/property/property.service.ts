@@ -14,7 +14,7 @@ export class PropertyService {
         private readonly propertyRepository: Repository<Property>,
         private readonly httpService: HttpService,
         private readonly configService: ConfigService,
-    ) {}
+    ) { }
 
     count() {
         return this.propertyRepository.count();
@@ -68,7 +68,7 @@ export class PropertyService {
             }
         }
 
-        qb.orderBy('property."createdAt"', 'DESC')
+        qb.orderBy('property.createdAt', 'DESC')
             .take(pageSize)
             .skip(pageSize * (page - 1));
 
@@ -83,8 +83,8 @@ export class PropertyService {
     async createProperty(createPropertyDto: CreatePropertyDto, user: any) {
         if (
             Number(createPropertyDto.csp.volume_available) +
-                Number(createPropertyDto.optp.volume_available) +
-                Number(createPropertyDto.opbp.volume_available) >
+            Number(createPropertyDto.optp.volume_available) +
+            Number(createPropertyDto.opbp.volume_available) >
             100
         ) {
             throw new HttpException(
@@ -106,7 +106,7 @@ export class PropertyService {
                     Math.floor(
                         (createPropertyDto.optp.volume_available *
                             total_fractions) /
-                            100,
+                        100,
                     ) * createPropertyDto.cost_per_fraction;
                 const optpPercent =
                     (totalOptp * createPropertyDto.optp.discount) / 100;
@@ -115,7 +115,7 @@ export class PropertyService {
                     Math.floor(
                         (createPropertyDto.opbp.volume_available *
                             total_fractions) /
-                            100,
+                        100,
                     ) * createPropertyDto.cost_per_fraction;
                 const opbpPercent =
                     (totalOpbp * createPropertyDto.opbp.discount) / 100;
@@ -124,7 +124,7 @@ export class PropertyService {
                     Math.floor(
                         (createPropertyDto.csp.volume_available *
                             total_fractions) /
-                            100,
+                        100,
                     ) * createPropertyDto.cost_per_fraction;
                 const cspPercent =
                     (totalCsp * createPropertyDto.csp.discount) / 100;
@@ -189,9 +189,9 @@ export class PropertyService {
             (data.csp?.volume_available !==
                 (findProperty.csp as any)?.volume_available ||
                 data.opbp?.volume_available !==
-                    (findProperty.opbp as any)?.volume_available ||
+                (findProperty.opbp as any)?.volume_available ||
                 data.optp?.volume_available !==
-                    (findProperty.optp as any)?.volume_available)
+                (findProperty.optp as any)?.volume_available)
         ) {
             throw new HttpException(
                 'You cannot update the volume available of this project. It is already past the design stage.',
@@ -231,8 +231,8 @@ export class PropertyService {
         findProperty.total_price =
             data.fraction_per_unit && data.cost_per_fraction
                 ? data.total_units *
-                  data.fraction_per_unit *
-                  data.cost_per_fraction
+                data.fraction_per_unit *
+                data.cost_per_fraction
                 : findProperty.cost_per_unit;
 
         return this.propertyRepository.save(findProperty);
@@ -254,7 +254,7 @@ export class PropertyService {
             const opbpAvailable =
                 Math.round(
                     findProperty.total_fractions *
-                        (opbp.volume_available / 100),
+                    (opbp.volume_available / 100),
                 ) - opbp.fractions_taken;
             const opbpPercent =
                 (opbpAvailable / findProperty.total_fractions) * 100;
@@ -262,7 +262,7 @@ export class PropertyService {
             const optpAvailable =
                 Math.round(
                     findProperty.total_fractions *
-                        (optp.volume_available / 100),
+                    (optp.volume_available / 100),
                 ) - optp.fractions_taken;
             const optpPercent =
                 (optpAvailable / findProperty.total_fractions) * 100;
@@ -283,7 +283,7 @@ export class PropertyService {
             const cspAvailable =
                 Math.round(
                     findProperty.total_fractions *
-                        (csp.volume_available / 100),
+                    (csp.volume_available / 100),
                 ) - csp.fractions_taken;
             const cspPercent =
                 (cspAvailable / findProperty.total_fractions) * 100;
