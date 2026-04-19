@@ -95,6 +95,8 @@ export class InvestorService {
                 ...createInvestorDto,
                 password: hash,
                 email: createInvestorDto.email.toLowerCase(),
+                date_of_birth: createInvestorDto.date_of_birth || null,
+                date_of_incoporation: createInvestorDto.date_of_incoporation || null,
             }),
         );
 
