@@ -1,15 +1,44 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Feature } from './entities/features.entity';
 import { CreateFeatureDto } from './dto/create-feature.dto';
 
+const DEFAULT_FEATURES = [
+    'swimming pool',
+    'gym',
+    'parking',
+    'security',
+    'elevator',
+    'balcony',
+    'garden',
+    'air conditioning',
+    'wifi',
+    'generator',
+    'borehole',
+    'solar panels',
+    'cctv',
+    'playground',
+    'clubhouse',
+];
+
 @Injectable()
-export class FeaturesService {
+export class FeaturesService implements OnModuleInit {
     constructor(
         @InjectRepository(Feature)
         private readonly featureRepository: Repository<Feature>,
     ) { }
+
+    async onModuleInit() {
+        const count = await this.featureRepository.count();
+        if (count === 0) {
+            for (const name of DEFAULT_FEATURES) {
+                await this.featureRepository.save(
+                    this.featureRepository.create({ name, status: 'active' }),
+                );
+            }
+        }
+    }
 
     count() {
         return this.featureRepository.count();
