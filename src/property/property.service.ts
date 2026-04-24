@@ -397,8 +397,12 @@ export class PropertyService {
      * The Buyops admin must then explicitly publish it there.
      */
     async sendToBuyops(propertyIdentifier: string): Promise<{ buyopsAssetId: string }> {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(propertyIdentifier);
+
         const property = await this.propertyRepository.findOne({
-            where: [{ id: propertyIdentifier }, { ref: propertyIdentifier }],
+            where: isUuid
+                ? [{ id: propertyIdentifier }, { ref: propertyIdentifier }]
+                : [{ ref: propertyIdentifier }],
             relations: ['type'],
         });
 
