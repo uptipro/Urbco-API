@@ -80,6 +80,7 @@ export class UserService {
                 ...createUserDto,
                 email: createUserDto.email.trim().toLowerCase(),
                 password: hash,
+                role_id: createUserDto.role_id || null,
             }),
         );
         return create;

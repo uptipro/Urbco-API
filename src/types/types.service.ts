@@ -1,14 +1,38 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Types } from './entities/types.entity';
 
 @Injectable()
-export class TypesService {
+export class TypesService implements OnModuleInit {
     constructor(
         @InjectRepository(Types)
         private readonly typesRepository: Repository<Types>,
     ) { }
+
+    async onModuleInit() {
+        await this.seedPropertyTypes();
+    }
+
+    async seedPropertyTypes() {
+        const defaultTypes = [
+            'Apartment', 'Duplex', 'Bungalow', 'Commercial',
+            'Terrace', 'Semi-Detached', 'Detached',
+        ];
+        for (const typeName of defaultTypes) {
+            const find = await this.typesRepository.findOne({
+                where: { name: typeName.toLowerCase() },
+            });
+            if (!find) {
+                await this.typesRepository.save(
+                    this.typesRepository.create({
+                        name: typeName.toLowerCase(),
+                        last_updated_by: null,
+                    }),
+                );
+            }
+        }
+    }
 
     count() {
         return this.typesRepository.count();

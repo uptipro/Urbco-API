@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from './entities/role.entity';
@@ -7,7 +7,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { permissions } from 'src/utils/data';
 
 @Injectable({})
-export class RoleService {
+export class RoleService implements OnModuleInit {
     constructor(
         @InjectRepository(Role)
         private readonly roleRepository: Repository<Role>,
@@ -15,6 +15,12 @@ export class RoleService {
         @InjectRepository(Permission)
         private readonly permissionRepository: Repository<Permission>,
     ) { }
+
+    async onModuleInit() {
+        await this.loadPermissions();
+        await this.loadSuperAdmin();
+        await this.seedRoles();
+    }
 
     getPermissions() {
         return this.permissionRepository.find();
@@ -102,6 +108,43 @@ export class RoleService {
         } else {
             find.permissions = getList;
             return this.roleRepository.save(find);
+        }
+    }
+
+    async seedRoles() {
+        const adminPermissions = [
+            'dashboard-stats',
+            'get-users', 'create-user', 'edit-user',
+            'get-roles', 'create-role', 'edit-role',
+            'view-features', 'create-features', 'edit-features',
+            'view-properties', 'create-properties', 'edit-properties',
+            'view-types', 'create-types', 'edit-types',
+            'get-investors', 'view-investments', 'view-transactions', 'create-investment',
+        ];
+        const viewerPermissions = [
+            'dashboard-stats',
+            'view-properties', 'view-types', 'view-features',
+            'get-investors', 'view-investments', 'view-transactions',
+        ];
+
+        const rolesToSeed = [
+            { name: 'Admin', permissions: adminPermissions },
+            { name: 'Viewer', permissions: viewerPermissions },
+        ];
+
+        for (const roleData of rolesToSeed) {
+            let find = await this.roleRepository.findOne({ where: { name: roleData.name } });
+            if (!find) {
+                await this.roleRepository.save(
+                    this.roleRepository.create({
+                        name: roleData.name,
+                        permissions: roleData.permissions,
+                    }),
+                );
+            } else {
+                find.permissions = roleData.permissions;
+                await this.roleRepository.save(find);
+            }
         }
     }
 }
