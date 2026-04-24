@@ -396,9 +396,9 @@ export class PropertyService {
      * Pushes this Urbco property to the Buyops platform as a draft asset.
      * The Buyops admin must then explicitly publish it there.
      */
-    async sendToBuyops(propertyId: string): Promise<{ buyopsAssetId: string }> {
+    async sendToBuyops(propertyIdentifier: string): Promise<{ buyopsAssetId: string }> {
         const property = await this.propertyRepository.findOne({
-            where: { ref: propertyId },
+            where: [{ id: propertyIdentifier }, { ref: propertyIdentifier }],
             relations: ['type'],
         });
 
@@ -461,7 +461,7 @@ export class PropertyService {
 
             const buyopsAssetId: string = response.data.assetId;
 
-            await this.propertyRepository.update(propertyId, {
+            await this.propertyRepository.update(property.id, {
                 sent_to_buyops: true,
                 buyops_asset_id: buyopsAssetId,
             });
