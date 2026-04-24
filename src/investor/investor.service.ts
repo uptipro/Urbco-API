@@ -90,15 +90,23 @@ export class InvestorService {
 
         const hash = await bcrypt.hash(createInvestorDto.password, 10);
 
-        const create = await this.investorRepository.save(
-            this.investorRepository.create({
-                ...createInvestorDto,
-                password: hash,
-                email: createInvestorDto.email.toLowerCase(),
-                date_of_birth: createInvestorDto.date_of_birth || null,
-                date_of_incoporation: createInvestorDto.date_of_incoporation || null,
-            }),
-        );
+        let create: Investor;
+        try {
+            create = await this.investorRepository.save(
+                this.investorRepository.create({
+                    ...createInvestorDto,
+                    password: hash,
+                    email: createInvestorDto.email.toLowerCase(),
+                    date_of_birth: createInvestorDto.date_of_birth || null,
+                    date_of_incoporation: createInvestorDto.date_of_incoporation || null,
+                }),
+            );
+        } catch (err) {
+            throw new HttpException(
+                `Failed to create investor: ${err?.message || err}`,
+                500,
+            );
+        }
 
         this.mailService.sendMail(
             createInvestorDto.email.toLowerCase(),
