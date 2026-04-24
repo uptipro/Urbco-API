@@ -135,6 +135,7 @@ export class PropertyService {
 
         const create = this.propertyRepository.create({
             ...createPropertyDto,
+            type: { id: createPropertyDto.type } as any,
             created_by: { id: user } as any,
             cost_per_unit:
                 createPropertyDto.fraction_per_unit *
