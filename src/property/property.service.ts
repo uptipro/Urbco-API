@@ -133,9 +133,13 @@ export class PropertyService {
             }
         };
 
+        const dto = createPropertyDto as any;
         const create = this.propertyRepository.create({
             ...createPropertyDto,
             type: { id: createPropertyDto.type } as any,
+            construction_start_date: dto.construction_start_date || null,
+            construction_end_date: dto.construction_end_date || null,
+            roofing_date: dto.roofing_date || null,
             created_by: { id: user } as any,
             cost_per_unit:
                 createPropertyDto.fraction_per_unit *
@@ -153,7 +157,17 @@ export class PropertyService {
             status: 'design',
         });
 
-        return this.propertyRepository.save(create);
+        try {
+            return await this.propertyRepository.save(create);
+        } catch (err: any) {
+            if (err?.code === '23505' && err?.detail?.includes('ref')) {
+                throw new HttpException(
+                    'A property with this reference already exists.',
+                    409,
+                );
+            }
+            throw err;
+        }
     }
 
     async getPropertyDetail(id: string) {
@@ -384,7 +398,7 @@ export class PropertyService {
      */
     async sendToBuyops(propertyId: string): Promise<{ buyopsAssetId: string }> {
         const property = await this.propertyRepository.findOne({
-            where: { id: propertyId },
+            where: { ref: propertyId },
             relations: ['type'],
         });
 
